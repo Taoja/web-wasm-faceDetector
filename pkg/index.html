@@ -18,6 +18,9 @@ Add the following polyfill for Microsoft Edge 17/18 support:
 (see https://caniuse.com/#feat=textencoder)
 -->
 <script src="wasm_exec.js"></script>
+input picture
+<img src="cascade/test.jpeg" id="inputPic"/>
+</body>
 <script>
     if (!WebAssembly.instantiateStreaming) { // polyfill
         WebAssembly.instantiateStreaming = async (resp, importObject) => {
@@ -28,56 +31,40 @@ Add the following polyfill for Microsoft Edge 17/18 support:
 
     const go = new Go();
     let mod, inst;
-    WebAssembly.instantiateStreaming(fetch("lib.wasm"), go.importObject).then((result) => {
+    WebAssembly.instantiateStreaming(fetch("lib.wasm"), go.importObject).then(async (result) => {
         mod = result.module;
         inst = result.instance;
-        document.getElementById("runButton").disabled = false;
+        run()
+        await fetchCascade()
+        detector()
     }).catch((err) => {
         console.error(err);
     });
 
-    async function run() {
-        await go.run(inst);
+    function run() {
+        return go.run(inst);
     }
 
-</script>
+    async function fetchCascade() {
+        var cascade = await fetch('./cascade/facefinder')
+        var ab = await cascade.arrayBuffer()
+        var u8a = new Uint8Array(ab)
+        load(u8a)
+        console.log('cascade already load')
+        return
+    }
 
-<button onClick="run();" id="runButton" disabled>Run</button>
-<br />
-choice cascade<input type="file" id="cascade"/>
-<br />
-choice img<input type="file" id="img">
-</body>
-<script>
-    document.querySelector("#cascade").addEventListener('change', function(e) {
-        var file = this.files[0]
-        var fr = new FileReader()
-        fr.onload = function () {
-            var ab = fr.result
-            var u8a = new Uint8Array(ab)
-            load(u8a)
-        }
-        fr.readAsArrayBuffer(file)
-    })
-    document.querySelector("#img").addEventListener('change', function(e) {
-        var file = this.files[0]
+    function detector() {
+        var img = document.querySelector("#inputPic")
         var canvas = document.createElement("canvas")
         var ctx = canvas.getContext('2d')
         canvas.width = 1200
         canvas.height = 960
-        var img = document.createElement('img')
-        var blob = new Blob([file], {type: file.type})
-        var url = URL.createObjectURL(blob)
-        img.onload = function() {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-            var map = ctx.getImageData(0, 0, canvas.width, canvas.height)
-            var u8a = new Uint8Array(map.data)
-            var res = render(u8a, map.width, map.height)
-            var imgDataMap = new ImageData(new Uint8ClampedArray(res), map.width, map.height)
-            ctx.putImageData(imgDataMap, map.width, map.height)
-            document.body.append(canvas)
-        }
-        img.src = url
-    })
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        var map = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        var u8a = new Uint8Array(map.data)
+        var res = render(u8a, map.width, map.height)
+        console.log(res)
+    }
 </script>
 </html>
